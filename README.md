@@ -215,6 +215,40 @@ Par defaut, le juge cherche `subjects/` dans plusieurs emplacements:
 
 Tu peux toujours forcer ce comportement avec `--subjects-dir`.
 
+## Consignes Etudiants
+
+Pour chaque exercice, vous devez rendre un fichier Python contenant la fonction demandee.
+
+Regles:
+
+- le nom du fichier doit etre exactement celui attendu
+- le fichier doit contenir une fonction callable avec le bon nom
+- la fonction doit accepter les bons parametres
+- la fonction doit retourner le resultat attendu
+- le fichier doit etre du Python valide
+- le programme ne doit pas planter pendant l'execution
+
+Exemple:
+
+- sujet `two-sum`
+- fichier attendu: `two_sum.py`
+- fonction attendue: `def two_sum(nums, target):`
+
+Important:
+
+- il faut definir la fonction, pas seulement ecrire du code en haut du fichier
+- evitez les `input()` et les `print()` inutiles
+- ne changez ni le nom du fichier ni le nom de la fonction
+- faites une solution assez efficace pour passer les tests `perf`
+
+Erreurs typiques:
+
+- mauvais nom de fichier
+- faute dans le nom de fonction
+- erreur de syntaxe
+- exception a l'execution
+- mauvais format de retour
+
 ## Regeneration Des Sujets
 
 Les `subject.json` sont generes a partir de [`scripts/generate_subjects.py`](./scripts/generate_subjects.py).
