@@ -1,0 +1,7 @@
+dist/
+tmp/
+*.exe
+*.test
+*.out
+__pycache__/
+*.pyc

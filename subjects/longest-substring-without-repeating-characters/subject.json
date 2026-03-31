@@ -1,0 +1,49 @@
+{
+  "id": "longest-substring-without-repeating-characters",
+  "title": "Longest Substring Without Repeating Characters",
+  "prototype": "def longest_substring_without_repeating_characters(s):",
+  "difficulty": "medium",
+  "description": "Étant donnée une chaîne `s`, retourne la longueur de la plus longue sous-chaîne contenant uniquement des caractères distincts.\n\nUne sous-chaîne est une portion contiguë de la chaîne.\n\nExemple 1:\ns = \"abcabcbb\"\nRéponse attendue: 3\nExplication: la plus longue sous-chaîne sans répétition est \"abc\".\n\nExemple 2:\ns = \"bbbbb\"\nRéponse attendue: 1\nExplication: la meilleure sous-chaîne possible est \"b\".\n\nExemple 3:\ns = \"pwwkew\"\nRéponse attendue: 3\nExplication: \"wke\" est valide, mais \"pwke\" n'est pas une sous-chaîne contiguë.\n\nExemple 4:\ns = \"\"\nRéponse attendue: 0",
+  "file_name": "longest_substring_without_repeating_characters.py",
+  "function_name": "longest_substring_without_repeating_characters",
+  "checker": "exact_int",
+  "time_limit_ms": 1500,
+  "tests": [
+    {
+      "name": "leetcode_example_1",
+      "group": "core",
+      "args": ["abcabcbb"],
+      "expected": 3
+    },
+    {
+      "name": "all_same",
+      "group": "core",
+      "args": ["bbbbb"],
+      "expected": 1
+    },
+    {
+      "name": "overlapping_window",
+      "group": "edge",
+      "args": ["pwwkew"],
+      "expected": 3
+    },
+    {
+      "name": "empty_string",
+      "group": "edge",
+      "args": [""],
+      "expected": 0
+    },
+    {
+      "name": "anti_hardcode_repeated_after_gap",
+      "group": "anti-hardcode",
+      "args": ["dvdf"],
+      "expected": 3
+    },
+    {
+      "name": "perf_unique_tail",
+      "group": "perf",
+      "args": ["abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"],
+      "expected": 26
+    }
+  ]
+}

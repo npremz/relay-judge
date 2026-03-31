@@ -1,0 +1,49 @@
+{
+  "id": "first-unique-character",
+  "title": "First Unique Character in a String",
+  "prototype": "def first_unique_character(s):",
+  "difficulty": "easy",
+  "description": "Étant donnée une chaîne `s`, retourne l'indice du premier caractère qui n'apparaît qu'une seule fois.\n\nSi aucun caractère n'est unique, retourne `-1`.\n\nL'indice est basé sur 0.\n\nExemple 1:\ns = \"leetcode\"\nRéponse attendue: 0\nExplication: `l` est le premier caractère non répété.\n\nExemple 2:\ns = \"loveleetcode\"\nRéponse attendue: 2\nExplication: `v` est le premier caractère présent une seule fois.\n\nExemple 3:\ns = \"aabbcc\"\nRéponse attendue: -1\n\nAttendu:\n- gérer le cas où le caractère unique est à la fin\n- gérer le cas où aucun caractère n'est valide\n- éviter une solution trop coûteuse sur de longues chaînes",
+  "file_name": "first_unique_character.py",
+  "function_name": "first_unique_character",
+  "checker": "exact_int",
+  "time_limit_ms": 1200,
+  "tests": [
+    {
+      "name": "leetcode_example_1",
+      "group": "core",
+      "args": ["leetcode"],
+      "expected": 0
+    },
+    {
+      "name": "leetcode_example_2",
+      "group": "core",
+      "args": ["loveleetcode"],
+      "expected": 2
+    },
+    {
+      "name": "no_unique_character",
+      "group": "edge",
+      "args": ["aabbcc"],
+      "expected": -1
+    },
+    {
+      "name": "unique_in_middle",
+      "group": "edge",
+      "args": ["aabbcddef"],
+      "expected": 4
+    },
+    {
+      "name": "anti_hardcode_unique_at_end",
+      "group": "anti-hardcode",
+      "args": ["zzxxyywwv"],
+      "expected": 8
+    },
+    {
+      "name": "long_perf_case",
+      "group": "perf",
+      "args": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"],
+      "expected": 300
+    }
+  ]
+}

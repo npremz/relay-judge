@@ -1,0 +1,49 @@
+{
+  "id": "merge-intervals",
+  "title": "Merge Intervals",
+  "prototype": "def merge_intervals(intervals):",
+  "difficulty": "medium",
+  "description": "Étant donnée une liste d'intervalles `intervals` où chaque intervalle est de la forme `[start, end]`, fusionne tous les intervalles qui se chevauchent et retourne la liste finale normalisée.\n\nDeux intervalles qui se touchent doivent aussi être fusionnés si la fin de l'un est égale au début de l'autre.\n\nLe résultat doit couvrir exactement les mêmes plages que l'entrée, sans doublons ni recouvrements.\n\nExemple 1:\nintervals = [[1,3],[2,6],[8,10],[15,18]]\nRéponse attendue: [[1,6],[8,10],[15,18]]\n\nExemple 2:\nintervals = [[1,4],[4,5]]\nRéponse attendue: [[1,5]]\n\nExemple 3:\nintervals = [[6,8],[1,9],[2,4],[4,7]]\nRéponse attendue: [[1,9]]\n\nAttendu:\n- accepter une entrée non triée\n- gérer les intervalles imbriqués\n- produire une sortie proprement ordonnée",
+  "file_name": "merge_intervals.py",
+  "function_name": "merge_intervals",
+  "checker": "intervals_exact",
+  "time_limit_ms": 1500,
+  "tests": [
+    {
+      "name": "simple_overlap",
+      "group": "core",
+      "args": [[[1, 3], [2, 6], [8, 10], [15, 18]]],
+      "expected": [[1, 6], [8, 10], [15, 18]]
+    },
+    {
+      "name": "touching_intervals",
+      "group": "core",
+      "args": [[[1, 4], [4, 5]]],
+      "expected": [[1, 5]]
+    },
+    {
+      "name": "already_sorted_with_gaps",
+      "group": "edge",
+      "args": [[[1, 2], [5, 7], [9, 12]]],
+      "expected": [[1, 2], [5, 7], [9, 12]]
+    },
+    {
+      "name": "unsorted_nested",
+      "group": "edge",
+      "args": [[[6, 8], [1, 9], [2, 4], [4, 7]]],
+      "expected": [[1, 9]]
+    },
+    {
+      "name": "anti_hardcode_reverse_input",
+      "group": "anti-hardcode",
+      "args": [[[9, 10], [3, 5], [4, 8], [1, 2]]],
+      "expected": [[1, 2], [3, 8], [9, 10]]
+    },
+    {
+      "name": "perf_many_small_intervals",
+      "group": "perf",
+      "args": [[[0, 1], [1, 2], [2, 3], [3, 4], [10, 11], [11, 12], [12, 13], [20, 21], [30, 31], [31, 32], [32, 33], [33, 34], [34, 35], [100, 200]]],
+      "expected": [[0, 4], [10, 13], [20, 21], [30, 35], [100, 200]]
+    }
+  ]
+}

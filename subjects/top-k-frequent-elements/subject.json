@@ -1,0 +1,49 @@
+{
+  "id": "top-k-frequent-elements",
+  "title": "Top K Frequent Elements",
+  "prototype": "def top_k_frequent_elements(nums, k):",
+  "difficulty": "medium",
+  "description": "Étant donné un tableau d'entiers `nums` et un entier `k`, retourne les `k` éléments les plus fréquents du tableau.\n\nL'ordre des éléments retournés n'a pas d'importance.\n\nExemple 1:\nnums = [1, 1, 1, 2, 2, 3], k = 2\nRéponse attendue: [1, 2]\n\nExemple 2:\nnums = [1], k = 1\nRéponse attendue: [1]\n\nExemple 3:\nnums = [4, -1, -1, 2, -1, 2, 3, 3, 3], k = 2\nRéponse attendue: [-1, 3]\n\nAttendu:\n- gérer des valeurs négatives\n- gérer les doublons massifs\n- ne pas dépendre d'un ordre de sortie particulier tant que le bon ensemble est renvoyé",
+  "file_name": "top_k_frequent_elements.py",
+  "function_name": "top_k_frequent_elements",
+  "checker": "set_of_ints",
+  "time_limit_ms": 1500,
+  "tests": [
+    {
+      "name": "leetcode_example_1",
+      "group": "core",
+      "args": [[1, 1, 1, 2, 2, 3], 2],
+      "expected": [1, 2]
+    },
+    {
+      "name": "single_value",
+      "group": "core",
+      "args": [[1], 1],
+      "expected": [1]
+    },
+    {
+      "name": "negative_values",
+      "group": "edge",
+      "args": [[4, -1, -1, 2, -1, 2, 3, 3, 3], 2],
+      "expected": [-1, 3]
+    },
+    {
+      "name": "k_equals_distinct_count",
+      "group": "edge",
+      "args": [[5, 5, 6, 6, 7, 8], 4],
+      "expected": [5, 6, 7, 8]
+    },
+    {
+      "name": "anti_hardcode_frequency_order_irrelevant",
+      "group": "anti-hardcode",
+      "args": [[9, 9, 8, 8, 8, 7, 7, 6], 2],
+      "expected": [8, 9]
+    },
+    {
+      "name": "perf_repeated_blocks",
+      "group": "perf",
+      "args": [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 6, 7, 8, 9, 10], 3],
+      "expected": [1, 2, 3]
+    }
+  ]
+}

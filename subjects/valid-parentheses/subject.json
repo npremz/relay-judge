@@ -1,0 +1,55 @@
+{
+  "id": "valid-parentheses",
+  "title": "Valid Parentheses",
+  "prototype": "def valid_parentheses(s):",
+  "difficulty": "easy",
+  "description": "Étant donnée une chaîne `s` ne contenant que les caractères `(`, `)`, `[`, `]`, `{` et `}`, retourne `true` si la chaîne est valide, sinon `false`.\n\nUne chaîne est valide si:\n- chaque parenthèse ouvrante est fermée par le bon type de parenthèse\n- les fermetures respectent le bon ordre\n- aucune parenthèse ouvrante ne reste sans fermeture\n\nExemple 1:\ns = \"()[]{}\"\nRéponse attendue: true\n\nExemple 2:\ns = \"(]\"\nRéponse attendue: false\n\nExemple 3:\ns = \"([)]\"\nRéponse attendue: false\n\nExemple 4:\ns = \"{[()()]}\"\nRéponse attendue: true",
+  "file_name": "valid_parentheses.py",
+  "function_name": "valid_parentheses",
+  "checker": "exact_bool",
+  "time_limit_ms": 1200,
+  "tests": [
+    {
+      "name": "simple_valid",
+      "group": "core",
+      "args": ["()[]{}"],
+      "expected": true
+    },
+    {
+      "name": "simple_invalid",
+      "group": "core",
+      "args": ["(]"],
+      "expected": false
+    },
+    {
+      "name": "nested_valid",
+      "group": "edge",
+      "args": ["{[()()]}"],
+      "expected": true
+    },
+    {
+      "name": "wrong_order",
+      "group": "edge",
+      "args": ["([)]"],
+      "expected": false
+    },
+    {
+      "name": "unfinished_stack",
+      "group": "edge",
+      "args": ["(((()"],
+      "expected": false
+    },
+    {
+      "name": "anti_hardcode_mixed_valid",
+      "group": "anti-hardcode",
+      "args": ["([]{})[{}]"],
+      "expected": true
+    },
+    {
+      "name": "long_balanced",
+      "group": "perf",
+      "args": ["(((((((((((((((((((((((((((((((((((((((((((((((((())))))))))))))))))))))))))))))))))))))))))))))))))"],
+      "expected": true
+    }
+  ]
+}
