@@ -13,6 +13,7 @@ import (
 
 	"relay-judge/internal/engine"
 	"relay-judge/internal/scoring"
+	"relay-judge/internal/stress"
 	"relay-judge/internal/subject"
 )
 
@@ -37,7 +38,7 @@ const (
 func main() {
 	if len(os.Args) < 2 {
 		if isInteractiveTerminal() {
-			code, err := runInteractive(detectSubjectsDir(), ".", defaultPython)
+			code, err := runInteractive(detectSubjectsDir(), ".", defaultPython, false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
 				os.Exit(exitInternal)
@@ -80,6 +81,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "relay-judge <command>\n")
 	fmt.Fprintf(os.Stderr, "relay-judge                # interactive mode\n")
 	fmt.Fprintf(os.Stderr, "relay-judge <file.py>      # infer the subject from the filename\n\n")
+	fmt.Fprintf(os.Stderr, "relay-judge --stress <file.py>\n\n")
 	fmt.Fprintf(os.Stderr, "Commands:\n")
 	fmt.Fprintf(os.Stderr, "  list   List available subjects\n")
 	fmt.Fprintf(os.Stderr, "  run    Evaluate a Python submission\n")
@@ -117,6 +119,7 @@ func runJudge(args []string) (int, error) {
 	pythonBin := fs.String("python", defaultPython, "Python interpreter to use")
 	jsonOutput := fs.Bool("json", false, "Emit JSON report")
 	detailedOutput := fs.Bool("detailed", false, "Emit the full jury sheet in terminal output")
+	stressMode := fs.Bool("stress", false, "Run the generated stress suite instead of the default test set")
 	if err := fs.Parse(args); err != nil {
 		return exitUsage, err
 	}
@@ -125,16 +128,16 @@ func runJudge(args []string) (int, error) {
 		*submission = fs.Args()[0]
 	}
 
-	if err := applyTrailingRunFlags(fs.Args(), jsonOutput, detailedOutput); err != nil {
+	if err := applyTrailingRunFlags(fs.Args(), jsonOutput, detailedOutput, stressMode); err != nil {
 		return exitUsage, err
 	}
 
 	if strings.TrimSpace(*subjectArg) == "" {
 		if strings.TrimSpace(*submission) != "" {
-			return runWithInferredSubject(*subjectsDir, *submission, *pythonBin, *jsonOutput, *detailedOutput)
+			return runWithInferredSubject(*subjectsDir, *submission, *pythonBin, *jsonOutput, *detailedOutput, *stressMode)
 		}
 		if isInteractiveTerminal() {
-			return runInteractive(*subjectsDir, *workspace, *pythonBin)
+			return runInteractive(*subjectsDir, *workspace, *pythonBin, *stressMode)
 		}
 		return exitUsage, fmt.Errorf("--subject is required")
 	}
@@ -149,35 +152,25 @@ func runJudge(args []string) (int, error) {
 		return exitInternal, err
 	}
 
+	if *stressMode {
+		spec, err = stress.Build(spec)
+		if err != nil {
+			return exitInternal, err
+		}
+	}
+
 	submissionPath := strings.TrimSpace(*submission)
 	if submissionPath == "" {
 		submissionPath = filepath.Join(*workspace, spec.FileName)
 	}
 
-	report, err := engine.Run(spec, engine.Options{
-		PythonBin:      *pythonBin,
-		SubmissionPath: submissionPath,
-	})
+	report, err := runSpec(spec, submissionPath, *pythonBin)
 	if err != nil {
 		return exitInternal, err
 	}
 
-	suggestion := scoring.Build(report)
-
-	if *jsonOutput {
-		payload, err := json.MarshalIndent(struct {
-			Report     engine.Report      `json:"report"`
-			Suggestion scoring.Suggestion `json:"suggestion"`
-		}{
-			Report:     report,
-			Suggestion: suggestion,
-		}, "", "  ")
-		if err != nil {
-			return exitInternal, err
-		}
-		fmt.Println(string(payload))
-	} else {
-		printReport(report, suggestion, *detailedOutput)
+	if err := renderReport(report, *jsonOutput, *detailedOutput, *stressMode); err != nil {
+		return exitInternal, err
 	}
 
 	return exitCodeForStatus(report.Status), nil
@@ -188,16 +181,16 @@ func tryDirectSubmission(args []string) (int, bool, error) {
 		return 0, false, nil
 	}
 
-	submissionPath, subjectsDir, pythonBin, jsonOutput, detailedOutput, handled, err := parseDirectArgs(args)
+	submissionPath, subjectsDir, pythonBin, jsonOutput, detailedOutput, stressMode, handled, err := parseDirectArgs(args)
 	if !handled || err != nil {
 		return 0, handled, err
 	}
 
-	code, err := runWithInferredSubject(subjectsDir, submissionPath, pythonBin, jsonOutput, detailedOutput)
+	code, err := runWithInferredSubject(subjectsDir, submissionPath, pythonBin, jsonOutput, detailedOutput, stressMode)
 	return code, true, err
 }
 
-func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin string, jsonOutput, detailedOutput, handled bool, err error) {
+func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin string, jsonOutput, detailedOutput, stressMode, handled bool, err error) {
 	subjectsDir = detectSubjectsDir()
 	pythonBin = defaultPython
 
@@ -209,23 +202,26 @@ func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin stri
 
 		switch current {
 		case "list", "run":
-			return "", "", "", false, false, false, nil
+			return "", "", "", false, false, false, false, nil
 		case "--detailed":
 			detailedOutput = true
 			continue
 		case "--json":
 			jsonOutput = true
 			continue
+		case "--stress":
+			stressMode = true
+			continue
 		case "--python":
 			if index+1 >= len(args) {
-				return "", "", "", false, false, true, fmt.Errorf("--python requires a value")
+				return "", "", "", false, false, false, true, fmt.Errorf("--python requires a value")
 			}
 			index++
 			pythonBin = strings.TrimSpace(args[index])
 			continue
 		case "--subjects-dir":
 			if index+1 >= len(args) {
-				return "", "", "", false, false, true, fmt.Errorf("--subjects-dir requires a value")
+				return "", "", "", false, false, false, true, fmt.Errorf("--subjects-dir requires a value")
 			}
 			index++
 			subjectsDir = strings.TrimSpace(args[index])
@@ -233,28 +229,28 @@ func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin stri
 		}
 
 		if strings.HasPrefix(current, "-") {
-			return "", "", "", false, false, true, fmt.Errorf("unknown flag %q", current)
+			return "", "", "", false, false, false, true, fmt.Errorf("unknown flag %q", current)
 		}
 
 		if !strings.HasSuffix(current, ".py") {
-			return "", "", "", false, false, false, nil
+			return "", "", "", false, false, false, false, nil
 		}
 
 		if submissionPath != "" {
-			return "", "", "", false, false, true, fmt.Errorf("multiple Python files provided")
+			return "", "", "", false, false, false, true, fmt.Errorf("multiple Python files provided")
 		}
 
 		submissionPath = current
 	}
 
 	if submissionPath == "" {
-		return "", "", "", false, false, false, nil
+		return "", "", "", false, false, false, false, nil
 	}
 
-	return submissionPath, subjectsDir, pythonBin, jsonOutput, detailedOutput, true, nil
+	return submissionPath, subjectsDir, pythonBin, jsonOutput, detailedOutput, stressMode, true, nil
 }
 
-func applyTrailingRunFlags(args []string, jsonOutput, detailedOutput *bool) error {
+func applyTrailingRunFlags(args []string, jsonOutput, detailedOutput, stressMode *bool) error {
 	startIndex := 0
 	if len(args) > 0 && strings.HasSuffix(strings.TrimSpace(args[0]), ".py") {
 		startIndex = 1
@@ -268,6 +264,8 @@ func applyTrailingRunFlags(args []string, jsonOutput, detailedOutput *bool) erro
 			*jsonOutput = true
 		case "--detailed":
 			*detailedOutput = true
+		case "--stress":
+			*stressMode = true
 		default:
 			if strings.HasPrefix(strings.TrimSpace(arg), "-") {
 				return fmt.Errorf("unknown trailing flag %q", arg)
@@ -278,7 +276,7 @@ func applyTrailingRunFlags(args []string, jsonOutput, detailedOutput *bool) erro
 	return nil
 }
 
-func runWithInferredSubject(subjectsDir, submissionPath, pythonBin string, jsonOutput, detailedOutput bool) (int, error) {
+func runWithInferredSubject(subjectsDir, submissionPath, pythonBin string, jsonOutput, detailedOutput, stressMode bool) (int, error) {
 	summary, err := subject.ResolveByFileName(subjectsDir, submissionPath)
 	if err != nil {
 		return exitUsage, err
@@ -289,17 +287,50 @@ func runWithInferredSubject(subjectsDir, submissionPath, pythonBin string, jsonO
 		return exitInternal, err
 	}
 
-	report, err := engine.Run(spec, engine.Options{
-		PythonBin:      pythonBin,
-		SubmissionPath: submissionPath,
-	})
+	if stressMode {
+		spec, err = stress.Build(spec)
+		if err != nil {
+			return exitInternal, err
+		}
+	}
+
+	report, err := runSpec(spec, submissionPath, pythonBin)
 	if err != nil {
 		return exitInternal, err
 	}
 
-	suggestion := scoring.Build(report)
+	if err := renderReport(report, jsonOutput, detailedOutput, stressMode); err != nil {
+		return exitInternal, err
+	}
 
+	return exitCodeForStatus(report.Status), nil
+}
+
+func runSpec(spec subject.Subject, submissionPath, pythonBin string) (engine.Report, error) {
+	return engine.Run(spec, engine.Options{
+		PythonBin:      pythonBin,
+		SubmissionPath: submissionPath,
+	})
+}
+
+func renderReport(report engine.Report, jsonOutput, detailedOutput, stressMode bool) error {
 	if jsonOutput {
+		if stressMode {
+			payload, err := json.MarshalIndent(struct {
+				Mode   string        `json:"mode"`
+				Report engine.Report `json:"report"`
+			}{
+				Mode:   "stress",
+				Report: report,
+			}, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(payload))
+			return nil
+		}
+
+		suggestion := scoring.Build(report)
 		payload, err := json.MarshalIndent(struct {
 			Report     engine.Report      `json:"report"`
 			Suggestion scoring.Suggestion `json:"suggestion"`
@@ -308,14 +339,19 @@ func runWithInferredSubject(subjectsDir, submissionPath, pythonBin string, jsonO
 			Suggestion: suggestion,
 		}, "", "  ")
 		if err != nil {
-			return exitInternal, err
+			return err
 		}
 		fmt.Println(string(payload))
-	} else {
-		printReport(report, suggestion, detailedOutput)
+		return nil
 	}
 
-	return exitCodeForStatus(report.Status), nil
+	if stressMode {
+		printStressReport(report, detailedOutput)
+		return nil
+	}
+
+	printReport(report, scoring.Build(report), detailedOutput)
+	return nil
 }
 
 func printReport(report engine.Report, suggestion scoring.Suggestion, detailed bool) {
@@ -423,7 +459,7 @@ func min(a, b int) int {
 	return b
 }
 
-func runInteractive(subjectsDir, workspace, pythonBin string) (int, error) {
+func runInteractive(subjectsDir, workspace, pythonBin string, stressMode bool) (int, error) {
 	items, err := subject.Discover(subjectsDir)
 	if err != nil {
 		return exitInternal, err
@@ -482,16 +518,24 @@ func runInteractive(subjectsDir, workspace, pythonBin string) (int, error) {
 		return exitInternal, err
 	}
 
-	report, err := engine.Run(spec, engine.Options{
-		PythonBin:      pythonBin,
-		SubmissionPath: filepath.Join(workspaceValue, spec.FileName),
-	})
+	if stressMode {
+		spec, err = stress.Build(spec)
+		if err != nil {
+			return exitInternal, err
+		}
+	}
+
+	report, err := runSpec(spec, filepath.Join(workspaceValue, spec.FileName), pythonBin)
 	if err != nil {
 		return exitInternal, err
 	}
 
 	fmt.Println()
-	printReport(report, scoring.Build(report), false)
+	if stressMode {
+		printStressReport(report, false)
+	} else {
+		printReport(report, scoring.Build(report), false)
+	}
 	return exitCodeForStatus(report.Status), nil
 }
 
@@ -616,4 +660,52 @@ func printJurySheet(report engine.Report, suggestion scoring.Suggestion) {
 	fmt.Println("   - ______________________________________________")
 	fmt.Println("   Avis general du jury:")
 	fmt.Println("   - ______________________________________________")
+}
+
+func printStressReport(report engine.Report, detailed bool) {
+	statusColor := ansiYellow
+	statusLabel := strings.ToUpper(report.Status)
+	switch report.Status {
+	case "passed":
+		statusColor = ansiGreen
+	case "failed", "runtime_error", "timeout", "load_error":
+		statusColor = ansiRed
+	}
+
+	fmt.Printf("%sCode Relay Judge%s\n", style(ansiBlue, true), style("", false))
+	fmt.Println("--------------------------------------------------")
+	fmt.Printf("Mode      : stress\n")
+	fmt.Printf("Subject   : %s (%s)\n", report.SubjectTitle, report.SubjectID)
+	fmt.Printf("File      : %s\n", report.SubmissionPath)
+	fmt.Printf("Status    : %s%s%s\n", style(statusColor, true), statusLabel, style("", false))
+	fmt.Printf("Time      : %.2fms\n", report.DurationMs)
+
+	if report.Message != "" {
+		fmt.Printf("Message   : %s\n", report.Message)
+	}
+
+	if len(report.Groups) > 0 {
+		fmt.Printf("Tests     : %s\n", compactGroups(report.Groups))
+	}
+
+	if len(report.Failures) > 0 {
+		fmt.Printf("Issues    : %s\n", compactFailures(report.Failures))
+	}
+
+	if !detailed {
+		fmt.Printf("Details   : use --detailed or --json\n")
+		return
+	}
+
+	if len(report.Failures) == 0 {
+		fmt.Println()
+		fmt.Println("Stress suite completed without mismatches.")
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("Failures:")
+	for _, failure := range report.Failures {
+		fmt.Printf("  - [%s] %s: %s\n", shortGroupName(failure.Group), failure.Name, failure.Message)
+	}
 }

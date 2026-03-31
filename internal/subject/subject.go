@@ -6,9 +6,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
+
+var normalizedFileNamePattern = regexp.MustCompile(`[^a-z0-9]+`)
 
 type Subject struct {
 	ID           string     `json:"id"`
@@ -149,9 +152,10 @@ func ResolveByFileName(subjectsDir, fileName string) (Summary, error) {
 		return Summary{}, fmt.Errorf("empty submission filename")
 	}
 
+	normalizedKey := normalizeFileName(normalizedFileName)
 	var matches []Summary
 	for _, item := range items {
-		if item.FileName == normalizedFileName {
+		if item.FileName == normalizedFileName || normalizeFileName(item.FileName) == normalizedKey {
 			matches = append(matches, item)
 		}
 	}
@@ -169,4 +173,10 @@ func ResolveByFileName(subjectsDir, fileName string) (Summary, error) {
 		sort.Strings(ids)
 		return Summary{}, fmt.Errorf("filename %q matches multiple subjects: %s", normalizedFileName, strings.Join(ids, ", "))
 	}
+}
+
+func normalizeFileName(fileName string) string {
+	base := strings.TrimSpace(filepath.Base(fileName))
+	stem := strings.TrimSuffix(strings.ToLower(base), filepath.Ext(base))
+	return normalizedFileNamePattern.ReplaceAllString(stem, "")
 }
