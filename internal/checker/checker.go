@@ -201,6 +201,18 @@ func toIntSlice(value any) ([]int, bool) {
 }
 
 func toIntervals(value any) ([][]int, bool) {
+	switch typed := value.(type) {
+	case [][]int:
+		result := make([][]int, 0, len(typed))
+		for _, pair := range typed {
+			if len(pair) != 2 {
+				return nil, false
+			}
+			result = append(result, append([]int(nil), pair...))
+		}
+		return result, true
+	}
+
 	items, ok := value.([]any)
 	if !ok {
 		return nil, false

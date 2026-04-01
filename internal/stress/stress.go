@@ -79,7 +79,7 @@ func testsFor(subjectID string) ([]subject.TestCase, error) {
 			{
 				Name:     "stress_repeated_blocks",
 				Group:    "perf",
-				Args:     []any{strings.Repeat(uniqueRun[:2048], 32)},
+				Args:     []any{strings.Repeat(firstNRunes(uniqueRun, 2048), 32)},
 				Expected: 2048,
 			},
 		}, nil
@@ -163,6 +163,14 @@ func uniqueRuneString(length int) string {
 		runes = append(runes, codepoint)
 	}
 	return string(runes)
+}
+
+func firstNRunes(value string, length int) string {
+	runes := []rune(value)
+	if len(runes) < length {
+		length = len(runes)
+	}
+	return string(runes[:length])
 }
 
 func buildReverseChainIntervals(count int) [][]int {
