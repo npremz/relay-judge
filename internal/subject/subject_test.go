@@ -80,6 +80,55 @@ func TestNormalizeFileName(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsCSubjectsWithPrototype(t *testing.T) {
+	t.Parallel()
+
+	spec := Subject{
+		ID:           "sort-the-stack",
+		Title:        "Sort the stack",
+		Language:     "c",
+		Prototype:    "void sort_the_stack(int *stack1, int len_stack1, int *stack2, int len_stack2):",
+		FileName:     "sort_the_stack.c",
+		FunctionName: "sort_the_stack",
+		Checker:      "exact_array",
+		TimeLimitMs:  1200,
+		Tests: []TestCase{
+			{Name: "basic", Group: "core", Args: []any{[]int{1, 3, 5}, 3, []int{2, 4, 6}, 3}, Expected: []int{1, 2, 3, 4, 5, 6}},
+		},
+	}
+
+	if err := spec.Validate(); err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+	if spec.NormalizedLanguage() != "c" {
+		t.Fatalf("unexpected language: %q", spec.NormalizedLanguage())
+	}
+	if spec.NormalizedResultSource() != "stdout_ints" {
+		t.Fatalf("unexpected result source: %q", spec.NormalizedResultSource())
+	}
+}
+
+func TestValidateRejectsCSubjectsWithoutPrototype(t *testing.T) {
+	t.Parallel()
+
+	spec := Subject{
+		ID:           "sort-the-stack",
+		Title:        "Sort the stack",
+		Language:     "c",
+		FileName:     "sort_the_stack.c",
+		FunctionName: "sort_the_stack",
+		Checker:      "exact_array",
+		TimeLimitMs:  1200,
+		Tests: []TestCase{
+			{Name: "basic", Group: "core", Args: []any{[]int{1}, 1, []int{2}, 1}, Expected: []int{1, 2}},
+		},
+	}
+
+	if err := spec.Validate(); err == nil {
+		t.Fatalf("expected Validate to reject missing C prototype")
+	}
+}
+
 func writeTestSubject(t *testing.T, subjectsDir string, spec Subject) {
 	t.Helper()
 

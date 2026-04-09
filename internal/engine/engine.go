@@ -1,14 +1,8 @@
 package engine
 
 import (
-	"bytes"
-	"context"
-	_ "embed"
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -17,11 +11,9 @@ import (
 	"relay-judge/internal/subject"
 )
 
-//go:embed wrapper.py
-var wrapperSource string
-
 type Options struct {
 	PythonBin      string
+	CCompiler      string
 	SubmissionPath string
 }
 
@@ -73,98 +65,49 @@ type wrapperTestResult struct {
 
 func Run(spec subject.Subject, options Options) (Report, error) {
 	startedAt := time.Now()
-	report := Report{
-		SubjectID:      spec.ID,
-		SubjectTitle:   spec.Title,
-		SubmissionPath: options.SubmissionPath,
-		Groups:         buildGroupReports(spec.Tests),
-	}
+	report := newReport(spec, options.SubmissionPath)
 
 	if strings.TrimSpace(options.SubmissionPath) == "" {
-		report.Status = "load_error"
-		report.Message = "submission path is required"
-		report.DurationMs = time.Since(startedAt).Seconds() * 1000
+		markLoadError(&report, startedAt, "submission path is required")
 		return report, nil
 	}
 
 	if _, err := os.Stat(options.SubmissionPath); err != nil {
-		report.Status = "load_error"
-		report.Message = fmt.Sprintf("submission file not found: %s", options.SubmissionPath)
-		report.DurationMs = time.Since(startedAt).Seconds() * 1000
+		markLoadError(&report, startedAt, fmt.Sprintf("submission file not found: %s", options.SubmissionPath))
 		return report, nil
 	}
 
-	tempDir, err := os.MkdirTemp("", "relay-judge-*")
-	if err != nil {
-		return report, err
+	switch spec.NormalizedLanguage() {
+	case "python":
+		return runPython(spec, options, report, startedAt)
+	case "c":
+		return runC(spec, options, report, startedAt)
+	default:
+		markLoadError(&report, startedAt, fmt.Sprintf("unsupported language %q", spec.NormalizedLanguage()))
+		return report, nil
 	}
-	defer os.RemoveAll(tempDir)
+}
 
-	wrapperPath := filepath.Join(tempDir, "wrapper.py")
-	if err := os.WriteFile(wrapperPath, []byte(wrapperSource), 0o700); err != nil {
-		return report, err
+func newReport(spec subject.Subject, submissionPath string) Report {
+	return Report{
+		SubjectID:      spec.ID,
+		SubjectTitle:   spec.Title,
+		SubmissionPath: submissionPath,
+		Groups:         buildGroupReports(spec.Tests),
 	}
+}
 
-	payload, err := json.Marshal(wrapperPayload{
-		FunctionName: spec.FunctionName,
-		Tests:        spec.Tests,
-	})
-	if err != nil {
-		return report, err
-	}
-
-	timeout := time.Duration(spec.TimeLimitMs) * time.Millisecond
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	pythonBin := options.PythonBin
-	if strings.TrimSpace(pythonBin) == "" {
-		pythonBin = "python3"
-	}
-
-	cmd := exec.CommandContext(ctx, pythonBin, wrapperPath, options.SubmissionPath)
-	cmd.Stdin = bytes.NewReader(payload)
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err = cmd.Run()
+func markLoadError(report *Report, startedAt time.Time, message string) {
+	report.Status = "load_error"
+	report.Message = message
 	report.DurationMs = time.Since(startedAt).Seconds() * 1000
+}
 
-	if ctx.Err() == context.DeadlineExceeded {
-		report.Status = "timeout"
-		report.Message = fmt.Sprintf("python process exceeded %dms", spec.TimeLimitMs)
-		return report, nil
-	}
-
-	if err != nil {
-		report.Status = "load_error"
-		report.Message = strings.TrimSpace(joinNonEmpty(stderr.String(), err.Error()))
-		return report, nil
-	}
-
-	var wrapped wrapperResponse
-	if err := json.Unmarshal(stdout.Bytes(), &wrapped); err != nil {
-		report.Status = "load_error"
-		report.Message = fmt.Sprintf("invalid wrapper output: %v", err)
-		if stderr.Len() > 0 {
-			report.Message = joinNonEmpty(report.Message, stderr.String())
-		}
-		return report, nil
-	}
-
-	if wrapped.Status != "ok" {
-		report.Status = "load_error"
-		report.Message = wrapped.Error
-		return report, nil
-	}
-
+func evaluateTestResults(spec subject.Subject, report Report, results []wrapperTestResult) Report {
 	groupIndex := indexGroupReports(report.Groups)
 	var hasFailure bool
 
-	for index, testResult := range wrapped.Tests {
+	for index, testResult := range results {
 		if index >= len(spec.Tests) {
 			break
 		}
@@ -182,7 +125,7 @@ func Run(spec subject.Subject, options Options) (Report, error) {
 				Group:   test.Group,
 				Message: compactMessage(testResult.Error),
 			})
-			return report, nil
+			return report
 		}
 
 		result := checker.Evaluate(spec.Checker, test, testResult.Actual)
@@ -203,11 +146,11 @@ func Run(spec subject.Subject, options Options) (Report, error) {
 
 	if hasFailure {
 		report.Status = "failed"
-		return report, nil
+		return report
 	}
 
 	report.Status = "passed"
-	return report, nil
+	return report
 }
 
 func buildGroupReports(tests []subject.TestCase) []GroupReport {

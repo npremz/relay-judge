@@ -1,0 +1,297 @@
+{
+  "id": "sort-the-stack",
+  "title": "Sort the stack",
+  "language": "c",
+  "prototype": "void sort_the_stack(int *stack1, int len_stack1, int *stack2, int len_stack2):",
+  "difficulty": "easy",
+  "description": "Impl\u00e9mente une fonction qui affiche tous les \u00e9l\u00e9ments des deux piles re\u00e7ues en argument dans l'ordre croissant.\n\nLes deux piles peuvent d\u00e9j\u00e0 \u00eatre tri\u00e9es, partiellement tri\u00e9es, ou pas tri\u00e9es du tout.\n\nLa fonction ne retourne rien: elle doit afficher la s\u00e9quence finale sur la sortie standard.\n\nExemple 1:\nstack1 = [1, 3, 5], len_stack1 = 3\nstack2 = [2, 4, 6], len_stack2 = 3\nSortie attendue: 1 2 3 4 5 6\n\nExemple 2:\nstack1 = [1, 9, 3], len_stack1 = 3\nstack2 = [4, 5, 6], len_stack2 = 3\nSortie attendue: 1 3 4 5 6 9\n\nAttendu:\n- g\u00e9rer les doublons\n- g\u00e9rer des entr\u00e9es non tri\u00e9es\n- conserver tous les \u00e9l\u00e9ments des deux piles",
+  "file_name": "sort_the_stack.c",
+  "function_name": "sort_the_stack",
+  "result_source": "stdout_ints",
+  "checker": "exact_array",
+  "time_limit_ms": 1200,
+  "tests": [
+    {
+      "name": "example_sorted_inputs",
+      "group": "core",
+      "args": [
+        [
+          1,
+          3,
+          5
+        ],
+        3,
+        [
+          2,
+          4,
+          6
+        ],
+        3
+      ],
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "name": "example_unsorted_left_stack",
+      "group": "core",
+      "args": [
+        [
+          1,
+          9,
+          3
+        ],
+        3,
+        [
+          4,
+          5,
+          6
+        ],
+        3
+      ],
+      "expected": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        9
+      ]
+    },
+    {
+      "name": "example_both_unsorted",
+      "group": "edge",
+      "args": [
+        [
+          12,
+          4,
+          3
+        ],
+        3,
+        [
+          6,
+          90,
+          8
+        ],
+        3
+      ],
+      "expected": [
+        3,
+        4,
+        6,
+        8,
+        12,
+        90
+      ]
+    },
+    {
+      "name": "duplicates_across_stacks",
+      "group": "edge",
+      "args": [
+        [
+          1,
+          2,
+          3,
+          6,
+          8,
+          12
+        ],
+        6,
+        [
+          1,
+          2,
+          3
+        ],
+        3
+      ],
+      "expected": [
+        1,
+        1,
+        2,
+        2,
+        3,
+        3,
+        6,
+        8,
+        12
+      ]
+    },
+    {
+      "name": "anti_hardcode_negative_and_zero_values",
+      "group": "anti-hardcode",
+      "args": [
+        [
+          7,
+          -5,
+          0,
+          13
+        ],
+        4,
+        [
+          -2,
+          9,
+          -5,
+          1
+        ],
+        4
+      ],
+      "expected": [
+        -5,
+        -5,
+        -2,
+        0,
+        1,
+        7,
+        9,
+        13
+      ]
+    },
+    {
+      "name": "perf_reverse_ordered_blocks",
+      "group": "perf",
+      "args": [
+        [
+          64,
+          62,
+          60,
+          58,
+          56,
+          54,
+          52,
+          50,
+          48,
+          46,
+          44,
+          42,
+          40,
+          38,
+          36,
+          34,
+          32,
+          30,
+          28,
+          26,
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12,
+          10,
+          8,
+          6,
+          4,
+          2
+        ],
+        32,
+        [
+          63,
+          61,
+          59,
+          57,
+          55,
+          53,
+          51,
+          49,
+          47,
+          45,
+          43,
+          41,
+          39,
+          37,
+          35,
+          33,
+          31,
+          29,
+          27,
+          25,
+          23,
+          21,
+          19,
+          17,
+          15,
+          13,
+          11,
+          9,
+          7,
+          5,
+          3,
+          1
+        ],
+        32
+      ],
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64
+      ]
+    }
+  ]
+}

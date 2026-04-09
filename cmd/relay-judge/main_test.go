@@ -11,11 +11,13 @@ import (
 func TestParseDirectArgsParsesStressMode(t *testing.T) {
 	t.Parallel()
 
-	submissionPath, subjectsDir, pythonBin, jsonOutput, detailedOutput, stressMode, handled, err := parseDirectArgs([]string{
+	submissionPath, subjectsDir, pythonBin, cCompiler, jsonOutput, detailedOutput, stressMode, handled, err := parseDirectArgs([]string{
 		"--stress",
 		"--json",
 		"--python",
 		"python-custom",
+		"--cc",
+		"clang",
 		"/tmp/two-sum.py",
 	})
 	if err != nil {
@@ -33,6 +35,9 @@ func TestParseDirectArgsParsesStressMode(t *testing.T) {
 	if pythonBin != "python-custom" {
 		t.Fatalf("unexpected python bin: %q", pythonBin)
 	}
+	if cCompiler != "clang" {
+		t.Fatalf("unexpected c compiler: %q", cCompiler)
+	}
 	if !jsonOutput {
 		t.Fatalf("expected jsonOutput=true")
 	}
@@ -41,6 +46,37 @@ func TestParseDirectArgsParsesStressMode(t *testing.T) {
 	}
 	if !stressMode {
 		t.Fatalf("expected stressMode=true")
+	}
+}
+
+func TestParseDirectArgsParsesCSubmission(t *testing.T) {
+	t.Parallel()
+
+	submissionPath, subjectsDir, pythonBin, cCompiler, jsonOutput, detailedOutput, stressMode, handled, err := parseDirectArgs([]string{
+		"--cc",
+		"clang-custom",
+		"/tmp/sort_the_stack.c",
+	})
+	if err != nil {
+		t.Fatalf("parseDirectArgs returned error: %v", err)
+	}
+	if !handled {
+		t.Fatalf("expected handled=true")
+	}
+	if submissionPath != "/tmp/sort_the_stack.c" {
+		t.Fatalf("unexpected submission path: %q", submissionPath)
+	}
+	if subjectsDir == "" {
+		t.Fatalf("expected non-empty subjects dir")
+	}
+	if pythonBin != defaultPython {
+		t.Fatalf("unexpected python bin: %q", pythonBin)
+	}
+	if cCompiler != "clang-custom" {
+		t.Fatalf("unexpected c compiler: %q", cCompiler)
+	}
+	if jsonOutput || detailedOutput || stressMode {
+		t.Fatalf("expected optional output flags to remain false")
 	}
 }
 
@@ -106,7 +142,7 @@ func TestRunWithInferredSubjectStressModeSupportsHyphenatedFileNames(t *testing.
 	}
 	os.Stdout = writer
 
-	code, runErr := runWithInferredSubject(subjectsDir, submissionPath, defaultPython, true, false, true)
+	code, runErr := runWithInferredSubject(subjectsDir, submissionPath, defaultPython, defaultC, true, false, true)
 
 	if err := writer.Close(); err != nil {
 		t.Fatalf("close writer: %v", err)

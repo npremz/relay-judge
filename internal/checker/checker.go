@@ -18,6 +18,7 @@ type Checker func(test subject.TestCase, actual any) Result
 var registry = map[string]Checker{
 	"exact_bool":      exactBool,
 	"exact_int":       exactInt,
+	"exact_array":     exactIntList,
 	"exact_int_list":  exactIntList,
 	"two_sum_pair":    twoSumPair,
 	"intervals_exact": intervalsExact,
