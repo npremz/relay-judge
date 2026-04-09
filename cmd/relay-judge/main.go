@@ -26,6 +26,7 @@ const (
 	exitUsage       = 64
 	exitInternal    = 70
 	defaultPython   = "python3"
+	defaultC        = "cc"
 	defaultSubjects = "subjects"
 	ansiReset       = "\033[0m"
 	ansiBold        = "\033[1m"
@@ -38,7 +39,7 @@ const (
 func main() {
 	if len(os.Args) < 2 {
 		if isInteractiveTerminal() {
-			code, err := runInteractive(detectSubjectsDir(), ".", defaultPython, false)
+			code, err := runInteractive(detectSubjectsDir(), ".", defaultPython, defaultC, false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
 				os.Exit(exitInternal)
@@ -80,11 +81,11 @@ func main() {
 func printUsage() {
 	fmt.Fprintf(os.Stderr, "relay-judge <command>\n")
 	fmt.Fprintf(os.Stderr, "relay-judge                # interactive mode\n")
-	fmt.Fprintf(os.Stderr, "relay-judge <file.py>      # infer the subject from the filename\n\n")
-	fmt.Fprintf(os.Stderr, "relay-judge --stress <file.py>\n\n")
+	fmt.Fprintf(os.Stderr, "relay-judge <file.py|file.c>      # infer the subject from the filename\n\n")
+	fmt.Fprintf(os.Stderr, "relay-judge --stress <file.py|file.c>\n\n")
 	fmt.Fprintf(os.Stderr, "Commands:\n")
 	fmt.Fprintf(os.Stderr, "  list   List available subjects\n")
-	fmt.Fprintf(os.Stderr, "  run    Evaluate a Python submission\n")
+	fmt.Fprintf(os.Stderr, "  run    Evaluate a Python or C submission\n")
 }
 
 func runList(args []string) error {
@@ -114,9 +115,10 @@ func runJudge(args []string) (int, error) {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	subjectArg := fs.String("subject", "", "Subject id or path to subject.json")
 	subjectsDir := fs.String("subjects-dir", detectSubjectsDir(), "Directory containing subjects")
-	workspace := fs.String("workspace", ".", "Workspace used to resolve the expected Python file")
-	submission := fs.String("submission", "", "Explicit path to the Python file to evaluate")
+	workspace := fs.String("workspace", ".", "Workspace used to resolve the expected submission file")
+	submission := fs.String("submission", "", "Explicit path to the submission file to evaluate")
 	pythonBin := fs.String("python", defaultPython, "Python interpreter to use")
+	cCompiler := fs.String("cc", defaultC, "C compiler to use")
 	jsonOutput := fs.Bool("json", false, "Emit JSON report")
 	detailedOutput := fs.Bool("detailed", false, "Emit the full jury sheet in terminal output")
 	stressMode := fs.Bool("stress", false, "Run the generated stress suite instead of the default test set")
@@ -134,10 +136,10 @@ func runJudge(args []string) (int, error) {
 
 	if strings.TrimSpace(*subjectArg) == "" {
 		if strings.TrimSpace(*submission) != "" {
-			return runWithInferredSubject(*subjectsDir, *submission, *pythonBin, *jsonOutput, *detailedOutput, *stressMode)
+			return runWithInferredSubject(*subjectsDir, *submission, *pythonBin, *cCompiler, *jsonOutput, *detailedOutput, *stressMode)
 		}
 		if isInteractiveTerminal() {
-			return runInteractive(*subjectsDir, *workspace, *pythonBin, *stressMode)
+			return runInteractive(*subjectsDir, *workspace, *pythonBin, *cCompiler, *stressMode)
 		}
 		return exitUsage, fmt.Errorf("--subject is required")
 	}
@@ -164,7 +166,7 @@ func runJudge(args []string) (int, error) {
 		submissionPath = filepath.Join(*workspace, spec.FileName)
 	}
 
-	report, err := runSpec(spec, submissionPath, *pythonBin)
+	report, err := runSpec(spec, submissionPath, *pythonBin, *cCompiler)
 	if err != nil {
 		return exitInternal, err
 	}
@@ -181,18 +183,19 @@ func tryDirectSubmission(args []string) (int, bool, error) {
 		return 0, false, nil
 	}
 
-	submissionPath, subjectsDir, pythonBin, jsonOutput, detailedOutput, stressMode, handled, err := parseDirectArgs(args)
+	submissionPath, subjectsDir, pythonBin, cCompiler, jsonOutput, detailedOutput, stressMode, handled, err := parseDirectArgs(args)
 	if !handled || err != nil {
 		return 0, handled, err
 	}
 
-	code, err := runWithInferredSubject(subjectsDir, submissionPath, pythonBin, jsonOutput, detailedOutput, stressMode)
+	code, err := runWithInferredSubject(subjectsDir, submissionPath, pythonBin, cCompiler, jsonOutput, detailedOutput, stressMode)
 	return code, true, err
 }
 
-func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin string, jsonOutput, detailedOutput, stressMode, handled bool, err error) {
+func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin, cCompiler string, jsonOutput, detailedOutput, stressMode, handled bool, err error) {
 	subjectsDir = detectSubjectsDir()
 	pythonBin = defaultPython
+	cCompiler = defaultC
 
 	for index := 0; index < len(args); index++ {
 		current := strings.TrimSpace(args[index])
@@ -202,7 +205,7 @@ func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin stri
 
 		switch current {
 		case "list", "run":
-			return "", "", "", false, false, false, false, nil
+			return "", "", "", "", false, false, false, false, nil
 		case "--detailed":
 			detailedOutput = true
 			continue
@@ -214,14 +217,21 @@ func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin stri
 			continue
 		case "--python":
 			if index+1 >= len(args) {
-				return "", "", "", false, false, false, true, fmt.Errorf("--python requires a value")
+				return "", "", "", "", false, false, false, true, fmt.Errorf("--python requires a value")
 			}
 			index++
 			pythonBin = strings.TrimSpace(args[index])
 			continue
+		case "--cc":
+			if index+1 >= len(args) {
+				return "", "", "", "", false, false, false, true, fmt.Errorf("--cc requires a value")
+			}
+			index++
+			cCompiler = strings.TrimSpace(args[index])
+			continue
 		case "--subjects-dir":
 			if index+1 >= len(args) {
-				return "", "", "", false, false, false, true, fmt.Errorf("--subjects-dir requires a value")
+				return "", "", "", "", false, false, false, true, fmt.Errorf("--subjects-dir requires a value")
 			}
 			index++
 			subjectsDir = strings.TrimSpace(args[index])
@@ -229,30 +239,30 @@ func parseDirectArgs(args []string) (submissionPath, subjectsDir, pythonBin stri
 		}
 
 		if strings.HasPrefix(current, "-") {
-			return "", "", "", false, false, false, true, fmt.Errorf("unknown flag %q", current)
+			return "", "", "", "", false, false, false, true, fmt.Errorf("unknown flag %q", current)
 		}
 
-		if !strings.HasSuffix(current, ".py") {
-			return "", "", "", false, false, false, false, nil
+		if !isSupportedSubmissionFile(current) {
+			return "", "", "", "", false, false, false, false, nil
 		}
 
 		if submissionPath != "" {
-			return "", "", "", false, false, false, true, fmt.Errorf("multiple Python files provided")
+			return "", "", "", "", false, false, false, true, fmt.Errorf("multiple submission files provided")
 		}
 
 		submissionPath = current
 	}
 
 	if submissionPath == "" {
-		return "", "", "", false, false, false, false, nil
+		return "", "", "", "", false, false, false, false, nil
 	}
 
-	return submissionPath, subjectsDir, pythonBin, jsonOutput, detailedOutput, stressMode, true, nil
+	return submissionPath, subjectsDir, pythonBin, cCompiler, jsonOutput, detailedOutput, stressMode, true, nil
 }
 
 func applyTrailingRunFlags(args []string, jsonOutput, detailedOutput, stressMode *bool) error {
 	startIndex := 0
-	if len(args) > 0 && strings.HasSuffix(strings.TrimSpace(args[0]), ".py") {
+	if len(args) > 0 && isSupportedSubmissionFile(strings.TrimSpace(args[0])) {
 		startIndex = 1
 	}
 
@@ -276,7 +286,7 @@ func applyTrailingRunFlags(args []string, jsonOutput, detailedOutput, stressMode
 	return nil
 }
 
-func runWithInferredSubject(subjectsDir, submissionPath, pythonBin string, jsonOutput, detailedOutput, stressMode bool) (int, error) {
+func runWithInferredSubject(subjectsDir, submissionPath, pythonBin, cCompiler string, jsonOutput, detailedOutput, stressMode bool) (int, error) {
 	summary, err := subject.ResolveByFileName(subjectsDir, submissionPath)
 	if err != nil {
 		return exitUsage, err
@@ -294,7 +304,7 @@ func runWithInferredSubject(subjectsDir, submissionPath, pythonBin string, jsonO
 		}
 	}
 
-	report, err := runSpec(spec, submissionPath, pythonBin)
+	report, err := runSpec(spec, submissionPath, pythonBin, cCompiler)
 	if err != nil {
 		return exitInternal, err
 	}
@@ -306,9 +316,10 @@ func runWithInferredSubject(subjectsDir, submissionPath, pythonBin string, jsonO
 	return exitCodeForStatus(report.Status), nil
 }
 
-func runSpec(spec subject.Subject, submissionPath, pythonBin string) (engine.Report, error) {
+func runSpec(spec subject.Subject, submissionPath, pythonBin, cCompiler string) (engine.Report, error) {
 	return engine.Run(spec, engine.Options{
 		PythonBin:      pythonBin,
+		CCompiler:      cCompiler,
 		SubmissionPath: submissionPath,
 	})
 }
@@ -459,7 +470,7 @@ func min(a, b int) int {
 	return b
 }
 
-func runInteractive(subjectsDir, workspace, pythonBin string, stressMode bool) (int, error) {
+func runInteractive(subjectsDir, workspace, pythonBin, cCompiler string, stressMode bool) (int, error) {
 	items, err := subject.Discover(subjectsDir)
 	if err != nil {
 		return exitInternal, err
@@ -525,7 +536,7 @@ func runInteractive(subjectsDir, workspace, pythonBin string, stressMode bool) (
 		}
 	}
 
-	report, err := runSpec(spec, filepath.Join(workspaceValue, spec.FileName), pythonBin)
+	report, err := runSpec(spec, filepath.Join(workspaceValue, spec.FileName), pythonBin, cCompiler)
 	if err != nil {
 		return exitInternal, err
 	}
@@ -537,6 +548,15 @@ func runInteractive(subjectsDir, workspace, pythonBin string, stressMode bool) (
 		printReport(report, scoring.Build(report), false)
 	}
 	return exitCodeForStatus(report.Status), nil
+}
+
+func isSupportedSubmissionFile(path string) bool {
+	switch strings.ToLower(filepath.Ext(strings.TrimSpace(path))) {
+	case ".py", ".c":
+		return true
+	default:
+		return false
+	}
 }
 
 func exitCodeForStatus(status string) int {

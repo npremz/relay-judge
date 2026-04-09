@@ -16,9 +16,12 @@ var normalizedFileNamePattern = regexp.MustCompile(`[^a-z0-9]+`)
 type Subject struct {
 	ID           string     `json:"id"`
 	Title        string     `json:"title"`
+	Language     string     `json:"language,omitempty"`
+	Prototype    string     `json:"prototype,omitempty"`
 	Description  string     `json:"description,omitempty"`
 	FileName     string     `json:"file_name"`
 	FunctionName string     `json:"function_name"`
+	ResultSource string     `json:"result_source,omitempty"`
 	Checker      string     `json:"checker"`
 	TimeLimitMs  int        `json:"time_limit_ms"`
 	Tests        []TestCase `json:"tests"`
@@ -74,6 +77,18 @@ func (s Subject) Validate() error {
 		return fmt.Errorf("at least one test is required")
 	}
 
+	if !isValidLanguage(s.NormalizedLanguage()) {
+		return fmt.Errorf("unsupported language %q", s.NormalizedLanguage())
+	}
+
+	if s.NormalizedLanguage() == "c" && strings.TrimSpace(s.Prototype) == "" {
+		return fmt.Errorf("prototype is required for c subjects")
+	}
+
+	if !isValidResultSource(s.NormalizedResultSource()) {
+		return fmt.Errorf("unsupported result_source %q", strings.TrimSpace(s.ResultSource))
+	}
+
 	for index, test := range s.Tests {
 		if strings.TrimSpace(test.Name) == "" {
 			return fmt.Errorf("test %d: missing name", index)
@@ -89,9 +104,59 @@ func (s Subject) Validate() error {
 	return nil
 }
 
+func (s Subject) NormalizedLanguage() string {
+	language := strings.TrimSpace(strings.ToLower(s.Language))
+	if language != "" {
+		return language
+	}
+
+	switch strings.ToLower(filepath.Ext(strings.TrimSpace(s.FileName))) {
+	case ".c":
+		return "c"
+	case ".py":
+		return "python"
+	default:
+		return "python"
+	}
+}
+
+func (s Subject) NormalizedResultSource() string {
+	source := strings.TrimSpace(strings.ToLower(s.ResultSource))
+	if source != "" {
+		return source
+	}
+
+	if s.NormalizedLanguage() == "c" && strings.HasPrefix(strings.TrimSpace(s.Prototype), "void ") {
+		switch s.Checker {
+		case "exact_array", "exact_int_list", "set_of_ints":
+			return "stdout_ints"
+		}
+	}
+
+	return "return"
+}
+
 func isValidGroup(group string) bool {
 	switch group {
 	case "core", "edge", "anti-hardcode", "perf":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidLanguage(language string) bool {
+	switch language {
+	case "python", "c":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidResultSource(source string) bool {
+	switch source {
+	case "return", "stdout_ints":
 		return true
 	default:
 		return false

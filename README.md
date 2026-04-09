@@ -4,7 +4,7 @@ Repo autonome du juge Code Relay, sans l'application web.
 
 ## Contenu
 
-- binaire Go pour evaluer des soumissions Python
+- binaire Go pour evaluer des soumissions Python et C
 - sujets JSON charges dynamiquement depuis `subjects/`
 - exemples Python pour verifier rapidement le setup
 
@@ -12,6 +12,7 @@ Repo autonome du juge Code Relay, sans l'application web.
 
 - Go 1.22+
 - Python 3 disponible dans le `PATH`
+- un compilateur C (`cc`, `clang` ou `gcc`) disponible dans le `PATH` pour les sujets C
 
 ## Demarrage
 
@@ -22,6 +23,7 @@ go run ./cmd/relay-judge list
 go run ./cmd/relay-judge run --subject two-sum --workspace ./examples
 go run ./cmd/relay-judge ./examples/two_sum.py
 go run ./cmd/relay-judge --stress ./examples/two_sum.py
+go run ./cmd/relay-judge ./examples/sort_the_stack.c --cc clang
 ```
 
 Build local:
@@ -52,7 +54,8 @@ Le poste cible doit avoir:
 
 - le binaire
 - le dossier `subjects` a cote du binaire
-- `python3` dans le `PATH`
+- `python3` dans le `PATH` pour les sujets Python
+- `cc`/`clang`/`gcc` dans le `PATH` pour les sujets C
 
 Si besoin:
 
@@ -65,7 +68,7 @@ chmod +x relay-judge
 
 - `cmd/relay-judge`: point d'entree CLI
 - `internal/subject`: chargement et resolution des sujets
-- `internal/engine`: orchestration Go + wrapper Python embarque
+- `internal/engine`: orchestration Go + runners Python/C
 - `internal/checker`: verification des resultats
 - `internal/scoring`: suggestion de scoring jury
 - `scripts/generate_subjects.py`: generation des `subject.json`, notamment des gros cas `perf`
@@ -81,7 +84,7 @@ Le binaire supporte 4 facons principales d'etre lance:
 1. Sans argument sur un terminal interactif: ouvre le mode interactif.
 2. `relay-judge list`: liste les sujets disponibles.
 3. `relay-judge run ...`: mode explicite avec flags.
-4. `relay-judge <file.py>`: deduction automatique du sujet a partir du nom du fichier.
+4. `relay-judge <file.py|file.c>`: deduction automatique du sujet a partir du nom du fichier.
 
 Exemples:
 
@@ -92,6 +95,7 @@ relay-judge run --subject two-sum --workspace ./examples
 relay-judge ./examples/two_sum.py
 relay-judge --stress ./examples/two_sum.py
 relay-judge run ./examples/two_sum.py --stress --json
+relay-judge ./examples/sort_the_stack.c --cc clang
 ```
 
 L'inference du sujet a partir du nom du fichier est tolerante:
@@ -120,15 +124,16 @@ relay-judge list --subjects-dir ./subjects
 
 ### Commande `run`
 
-Lance l'evaluation d'une soumission Python.
+Lance l'evaluation d'une soumission Python ou C.
 
 Options:
 
 - `--subject <id|path>`: id du sujet ou chemin vers un `subject.json`
 - `--subjects-dir <path>`: dossier des sujets si `--subject` est un id
 - `--workspace <path>`: dossier dans lequel chercher le fichier attendu du sujet
-- `--submission <path>`: chemin explicite vers le fichier Python a evaluer
+- `--submission <path>`: chemin explicite vers le fichier source a evaluer
 - `--python <bin>`: interpreteur Python a utiliser
+- `--cc <bin>`: compilateur C a utiliser
 - `--json`: sortie JSON
 - `--detailed`: sortie terminal plus detaillee
 - `--stress`: remplace les tests normaux par la suite stress generee en memoire
@@ -136,7 +141,7 @@ Options:
 Notes:
 
 - si `--submission` est absent, le juge cherche `spec.file_name` dans `--workspace`
-- si `--subject` est absent mais qu'un fichier `.py` est fourni en argument positionnel, le sujet est deduit du nom du fichier
+- si `--subject` est absent mais qu'un fichier `.py` ou `.c` est fourni en argument positionnel, le sujet est deduit du nom du fichier
 - `--json`, `--detailed` et `--stress` fonctionnent aussi en trailing flags, par exemple `relay-judge run ./examples/two_sum.py --stress --json`
 
 Exemples:
@@ -148,9 +153,10 @@ relay-judge run ./examples/two_sum.py --json
 relay-judge run ./examples/two_sum.py --stress --detailed
 relay-judge run --subject ./subjects/two-sum/subject.json --submission ./examples/two_sum.py
 relay-judge run --subject two-sum --workspace ./examples --python python3.12
+relay-judge run ./examples/sort_the_stack.c --cc clang
 ```
 
-### Mode direct `relay-judge <file.py>`
+### Mode direct `relay-judge <file.py|file.c>`
 
 Equivalent a un `run` avec inference du sujet par nom de fichier.
 
@@ -158,6 +164,7 @@ Options supportees dans ce mode:
 
 - `--subjects-dir <path>`
 - `--python <bin>`
+- `--cc <bin>`
 - `--json`
 - `--detailed`
 - `--stress`
@@ -168,6 +175,7 @@ Exemples:
 relay-judge ./examples/two_sum.py
 relay-judge --stress ./examples/two_sum.py
 relay-judge --json --python python3 ./examples/two_sum.py
+relay-judge --json --cc clang ./examples/sort_the_stack.c
 ```
 
 ### Mode interactif
@@ -186,7 +194,7 @@ Statuts possibles:
 - `PASSED`: tous les tests passent
 - `FAILED`: la soumission repond mais au moins un test est faux
 - `RUNTIME_ERROR`: la soumission leve une exception
-- `TIMEOUT`: le process Python depasse la limite
+- `TIMEOUT`: le process Python ou C depasse la limite
 - `LOAD_ERROR`: le fichier ne peut pas etre charge ou le symbole attendu manque
 
 Codes de retour:
@@ -217,7 +225,7 @@ Tu peux toujours forcer ce comportement avec `--subjects-dir`.
 
 ## Consignes Etudiants
 
-Pour chaque exercice, vous devez rendre un fichier Python contenant la fonction demandee.
+Pour chaque exercice, vous devez rendre un fichier source correspondant au langage du sujet.
 
 Regles:
 

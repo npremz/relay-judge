@@ -12,6 +12,7 @@ SUBJECTS_DIR = ROOT / "subjects"
 
 def write_subject(spec: dict) -> None:
     path = SUBJECTS_DIR / spec["id"] / "subject.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(spec, indent=2, ensure_ascii=True) + "\n",
         encoding="utf-8",
@@ -43,12 +44,88 @@ def build_merge_intervals_perf_case(interval_count: int = 12000) -> tuple[list[l
     return intervals, [[0, interval_count]]
 
 
+def build_sort_the_stack_case(size: int = 32) -> tuple[list[int], list[int], list[int]]:
+    left = list(range(size * 2, 0, -2))
+    right = list(range((size * 2) - 1, 0, -2))
+    expected = list(range(1, size * 2 + 1))
+    return left, right, expected
+
+
 def build_specs() -> list[dict]:
     longest_unique_run = unique_unicode_run(4096)
     top_k_perf_nums, top_k_perf_expected = build_top_k_perf_case()
     merge_perf_intervals, merge_perf_expected = build_merge_intervals_perf_case()
+    sort_left, sort_right, sort_expected = build_sort_the_stack_case()
 
     return [
+        {
+            "id": "sort-the-stack",
+            "title": "Sort the stack",
+            "language": "c",
+            "prototype": "void sort_the_stack(int *stack1, int len_stack1, int *stack2, int len_stack2):",
+            "difficulty": "easy",
+            "description": (
+                "Implémente une fonction qui affiche tous les éléments des deux piles reçues en argument dans "
+                "l'ordre croissant.\n\n"
+                "Les deux piles peuvent déjà être triées, partiellement triées, ou pas triées du tout.\n\n"
+                "La fonction ne retourne rien: elle doit afficher la séquence finale sur la sortie standard.\n\n"
+                "Exemple 1:\n"
+                "stack1 = [1, 3, 5], len_stack1 = 3\n"
+                "stack2 = [2, 4, 6], len_stack2 = 3\n"
+                "Sortie attendue: 1 2 3 4 5 6\n\n"
+                "Exemple 2:\n"
+                "stack1 = [1, 9, 3], len_stack1 = 3\n"
+                "stack2 = [4, 5, 6], len_stack2 = 3\n"
+                "Sortie attendue: 1 3 4 5 6 9\n\n"
+                "Attendu:\n"
+                "- gérer les doublons\n"
+                "- gérer des entrées non triées\n"
+                "- conserver tous les éléments des deux piles"
+            ),
+            "file_name": "sort_the_stack.c",
+            "function_name": "sort_the_stack",
+            "result_source": "stdout_ints",
+            "checker": "exact_array",
+            "time_limit_ms": 1200,
+            "tests": [
+                {
+                    "name": "example_sorted_inputs",
+                    "group": "core",
+                    "args": [[1, 3, 5], 3, [2, 4, 6], 3],
+                    "expected": [1, 2, 3, 4, 5, 6],
+                },
+                {
+                    "name": "example_unsorted_left_stack",
+                    "group": "core",
+                    "args": [[1, 9, 3], 3, [4, 5, 6], 3],
+                    "expected": [1, 3, 4, 5, 6, 9],
+                },
+                {
+                    "name": "example_both_unsorted",
+                    "group": "edge",
+                    "args": [[12, 4, 3], 3, [6, 90, 8], 3],
+                    "expected": [3, 4, 6, 8, 12, 90],
+                },
+                {
+                    "name": "duplicates_across_stacks",
+                    "group": "edge",
+                    "args": [[1, 2, 3, 6, 8, 12], 6, [1, 2, 3], 3],
+                    "expected": [1, 1, 2, 2, 3, 3, 6, 8, 12],
+                },
+                {
+                    "name": "anti_hardcode_negative_and_zero_values",
+                    "group": "anti-hardcode",
+                    "args": [[7, -5, 0, 13], 4, [-2, 9, -5, 1], 4],
+                    "expected": [-5, -5, -2, 0, 1, 7, 9, 13],
+                },
+                {
+                    "name": "perf_reverse_ordered_blocks",
+                    "group": "perf",
+                    "args": [sort_left, len(sort_left), sort_right, len(sort_right)],
+                    "expected": sort_expected,
+                },
+            ],
+        },
         {
             "id": "two-sum",
             "title": "Two Sum",

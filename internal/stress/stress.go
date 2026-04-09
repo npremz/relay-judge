@@ -2,6 +2,7 @@ package stress
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"relay-judge/internal/subject"
@@ -123,6 +124,23 @@ func testsFor(subjectID string) ([]subject.TestCase, error) {
 				Expected: false,
 			},
 		}, nil
+	case "sort-the-stack":
+		left, right, expected := buildSortTheStackStressCase(20000)
+		dupLeft, dupRight, dupExpected := buildSortTheStackStressCaseWithDuplicates(12000)
+		return []subject.TestCase{
+			{
+				Name:     "stress_reverse_even_odd_blocks",
+				Group:    "perf",
+				Args:     []any{left, len(left), right, len(right)},
+				Expected: expected,
+			},
+			{
+				Name:     "stress_negatives_and_duplicates",
+				Group:    "perf",
+				Args:     []any{dupLeft, len(dupLeft), dupRight, len(dupRight)},
+				Expected: dupExpected,
+			},
+		}, nil
 	default:
 		return nil, fmt.Errorf("no stress suite defined for subject %q", subjectID)
 	}
@@ -207,6 +225,43 @@ func buildTopKStressCase(distinct, maxFrequency, topK int) ([]int, []int) {
 	}
 
 	return nums, expected
+}
+
+func buildSortTheStackStressCase(size int) ([]int, []int, []int) {
+	left := make([]int, 0, size)
+	right := make([]int, 0, size)
+	expected := make([]int, 0, size*2)
+
+	for value := size * 2; value >= 2; value -= 2 {
+		left = append(left, value)
+	}
+	for value := (size * 2) - 1; value >= 1; value -= 2 {
+		right = append(right, value)
+	}
+	for value := 1; value <= size*2; value++ {
+		expected = append(expected, value)
+	}
+
+	return left, right, expected
+}
+
+func buildSortTheStackStressCaseWithDuplicates(size int) ([]int, []int, []int) {
+	left := make([]int, 0, size)
+	right := make([]int, 0, size)
+	expected := make([]int, 0, size*2)
+
+	for index := size - 1; index >= 0; index-- {
+		left = append(left, (index%17)-8)
+	}
+	for index := size - 1; index >= 0; index-- {
+		right = append(right, (index%23)-11)
+	}
+
+	expected = append(expected, left...)
+	expected = append(expected, right...)
+	sort.Ints(expected)
+
+	return left, right, expected
 }
 
 func max(a, b int) int {
